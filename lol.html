@@ -1,20 +1,45 @@
 <html>
   <head>
-    <script>
-      var DISPLAYS = ["inline", "block", "table", "table-row", "table-cell"]
+    <style>
+    </style>
 
-      var TAGS = ["div", "q", "input", "select", "textarea", "form", "span"]
+    <script src="mersenne-twister.js"></script>
+    <script>
+
+      var seed = "SEED"
+      if (!document.location.hash.length) {
+        document.location.hash=seed
+      }
+
+      var m = new MersenneTwister(document.location.hash.substr(1).split("/")[0])
+
+      var DISPLAYS = ['inline', 'block']
+
+      var TAGS = ["div", "span"]
+      var PSEUDO = ["before", "after"]
+
+      var LIST_STYLES = ['asterisks', 'footnotes', 'katakana', 'decimal', 'none']
+
+      var STYLES = ["direction: rtl", "overflow: hidden", "-webkit-flex(0 0 100px)" ]
 
       var actions = []
+      var xs = []
+
+      var NUM_DISPLAYS=3
+      var NUM_ELEMENTS=4
+      var NUM_PSEUDOS=4
+      var NUM_STYLES=3
 
       function displays(e) {
-        for (var b=0; b<DISPLAYS.length; b++) {
-          var d = DISPLAYS[b]
+        for (var b=0; b<NUM_DISPLAYS; b++) {
+          var d = ra(DISPLAYS)
           actions.push(function(x, y) { return function() {
               x.style.display=y
-              document.body.style.zoom=Math.random()*2
+              document.body.style.zoom=m.random()*2
               setTimeout(actions.shift(), 0)
           } }(e,d))
+
+          xs.push(e.id+".style.display='"+d+"'")
           for (var c=0; c < e.children.length; c++) {
             displays(e.children[c])
           }
@@ -22,31 +47,92 @@
       }
 
       function rint(upto) {
-        return Math.floor(upto*Math.random())
+        return Math.floor(upto*m.random())
       }
 
       function ra(a) {
         return a[rint(a.length)]
       }
 
+      function dump(elementz, rules) {
+        var cssRules = document.styleSheets[0].cssRules
+        var dump = "<html><head><style>"
+
+              for (var ci=0; ci<cssRules.length; ci++) {
+                dump += cssRules[ci].cssText
+              }
+
+              dump+="</style>"
+
+            dump+="<script>function crash(){"
+
+              for (var i=0; i<NUM_ELEMENTS; i++) {
+                dump+="var el"+i+" = document.createElement('"+elementz[i]+"');"
+                dump+="el"+i+".setAttribute('id', 'el"+i+"');"
+              }
+              dump+="document.body.appendChild(el0);"
+              for (var i=1; i<NUM_ELEMENTS; i++) {
+                dump+="el"+(i-1)+".appendChild(el"+i+");"
+              }
+              dump+="var xs=[\""
+
+              dump+=rules.join("\", \"")
+              dump+="\", \""
+
+              dump+=xs.join("\", \"")
+              dump+="\"];"
+              dump+="function next0() { eval(xs.shift()); document.body.style.zoom=Math.random()*2; setTimeout(next0,0) }"
+              dump+="setTimeout(next0,0)"
+              dump+="} window.onload=crash</scr"+"ipt>"
+            dump+="</head><body>"
+            dump+="</body></html>"
+        document.body.innerHTML=btoa(dump)
+      }
+
+
       function fuzz() {
-        var element1
-        for (var i=0; i<4; i++) {
-          var element2 = document.createElement(ra(TAGS))
-          if (element1) {
-            element1.appendChild(element2)
-            } else {
-            document.body.appendChild(element2)
+        var element1 = document.body
+        var styleSheet = document.styleSheets[0]
+        var elementz = []
+        var rules = []
+        rules.push("element1 = document.body")
+        for (var i=0; i<NUM_ELEMENTS; i++) {
+          var elementType = ra(TAGS)
+          var element2 = document.createElement(elementType)
+          rules.push("element2 = document.createElement('"+elementType+"')")
+          element2.setAttribute("id", "el"+i)
+          rules.push("element2.setAttribute('id', 'el"+i+"')")
+          elementz.push(elementType)
+          for (var j=0; j<NUM_STYLES; j++) {
+            var rule = elementType+" { "+ra(STYLES)+" } "
+            styleSheet.insertRule(rule, styleSheet.cssRules.length)
           }
+          for (var p=0; p<NUM_PSEUDOS; p++) {
+            var rule = elementType+":"+ra(PSEUDO)+" { display: "+ra(DISPLAYS) +"; content: counter(c, "+ra(LIST_STYLES)+"); }"
+            styleSheet.insertRule(rule, styleSheet.cssRules.length)
+          }
+          rules.push("element1.appendChild(element2)")
+          element1.appendChild(element2)
           element1 = element2
+          rules.push("element1 = element2")
         }
-        document.body
         var all = document.body.children
         for (var a=0; a<all.length; a++) {
           var e = all[a]
           displays(e, 0, 0)
         }
-        setTimeout(actions.shift(),0)
+        actions.push(function() { 
+          setTimeout(function() {
+            document.location.hash=parseInt(document.location.hash.substr(1).split("/")[0])+1
+            location.reload()
+          }, 100)
+        })
+
+        if (document.location.hash.substr(1).split("/").length>1) {
+          dump(elementz, rules)
+          } else {
+          setTimeout(actions.shift(),0)
+        }
       }
 
       window.onload=fuzz
