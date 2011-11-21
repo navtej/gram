@@ -1,0 +1,57 @@
+<html>
+  <head>
+    <script>
+      var DISPLAYS = ["inline", "block", "table", "table-row", "table-cell"]
+
+      var TAGS = ["div", "q", "input", "select", "textarea", "form", "span"]
+
+      var actions = []
+
+      function displays(e) {
+        for (var b=0; b<DISPLAYS.length; b++) {
+          var d = DISPLAYS[b]
+          actions.push(function(x, y) { return function() {
+              x.style.display=y
+              document.body.style.zoom=Math.random()*2
+              setTimeout(actions.shift(), 0)
+          } }(e,d))
+          for (var c=0; c < e.children.length; c++) {
+            displays(e.children[c])
+          }
+        }
+      }
+
+      function rint(upto) {
+        return Math.floor(upto*Math.random())
+      }
+
+      function ra(a) {
+        return a[rint(a.length)]
+      }
+
+      function fuzz() {
+        var element1
+        for (var i=0; i<4; i++) {
+          var element2 = document.createElement(ra(TAGS))
+          if (element1) {
+            element1.appendChild(element2)
+            } else {
+            document.body.appendChild(element2)
+          }
+          element1 = element2
+        }
+        document.body
+        var all = document.body.children
+        for (var a=0; a<all.length; a++) {
+          var e = all[a]
+          displays(e, 0, 0)
+        }
+        setTimeout(actions.shift(),0)
+      }
+
+      window.onload=fuzz
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
